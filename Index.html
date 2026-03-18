@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Donut Trader Logger</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b0f1a;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+
+    h2 {
+      font-weight: 600;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      background: #111827;
+      border: 1px solid #2a2f45;
+      color: #e5e7eb;
+      padding: 8px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: white;
+      border: none;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .card {
+      background: #1a1f2e;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #2a2f45;
+    }
+
+    input, select {
+      margin: 5px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #2a2f45;
+      background: #0f172a;
+      color: white;
+    }
+
+    input::placeholder {
+      color: #6b7280;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th {
+      background: #1a1f2e;
+      font-weight: 500;
+    }
+
+    td, th {
+      border: 1px solid #2a2f45;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .win {
+      color: #22c55e;
+      font-weight: 500;
+    }
+
+    .loss {
+      color: #ef4444;
+      font-weight: 500;
+    }
+
+    tr:hover {
+      background: #111827;
+    }
+
+    .insight-box {
+      background: #111827;
+      color: #a78bfa;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+      border: 1px solid #2a2f45;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<h2> 🍩DONUT TRADER LOGGER</h2>
+
+<!-- Top Right -->
+<div class="top-bar">
+  <button class="btn" onclick="exportCSV()">Export CSV</button>
+</div>
+
+<!-- Input -->
+<div class="card">
+  <input id="token" placeholder="Token (SOL)">
+  <input id="entry" type="number" placeholder="Entry">
+  <input id="exit" type="number" placeholder="Exit">
+  <input id="risk" type="number" placeholder="Risk %">
+
+  <input id="donut" placeholder="Donut AI Insight">
+
+  <select id="correct">
+    <option value="">AI Correct?</option>
+    <option>Yes</option>
+    <option>No</option>
+  </select>
+
+  <select id="mistake">
+    <option value="">Mistake</option>
+    <option>FOMO</option>
+    <option>Late Entry</option>
+    <option>No Stop Loss</option>
+    <option>Overtrading</option>
+  </select>
+
+  <input id="note" placeholder="Lesson learned">
+
+  <button class="btn btn-primary" onclick="addTrade()">Add Trade</button>
+</div>
+
+<!-- Stats -->
+<div class="card">
+  <h3>Stats</h3>
+  <p id="stats"></p>
+  <div id="insights" class="insight-box"></div>
+</div>
+
+<!-- Table -->
+<table>
+  <thead>
+    <tr>
+      <th>Token</th>
+      <th>PnL</th>
+      <th>Risk</th>
+      <th>AI</th>
+      <th>Correct</th>
+      <th>Mistake</th>
+      <th>Note</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="tradeTable"></tbody>
+</table>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+function addTrade() {
+  let token = document.getElementById("token").value;
+  let entry = parseFloat(document.getElementById("entry").value);
+  let exit = parseFloat(document.getElementById("exit").value);
+  let risk = parseFloat(document.getElementById("risk").value);
+  let donut = document.getElementById("donut").value;
+  let correct = document.getElementById("correct").value;
+  let mistake = document.getElementById("mistake").value;
+  let note = document.getElementById("note").value;
+
+  if (!token || !entry || !exit) return alert("Fill required fields");
+
+  let pnl = ((exit - entry) / entry * 100).toFixed(2);
+
+  trades.push({ token, pnl, risk, donut, correct, mistake, note });
+  localStorage.setItem("trades", JSON.stringify(trades));
+
+  render();
+}
+
+function deleteTrade(i) {
+  trades.splice(i, 1);
+  localStorage.setItem("trades", JSON.stringify(trades));
+  render();
+}
+
+function render() {
+  let table = document.getElementById("tradeTable");
+  table.innerHTML = "";
+
+  let wins = 0;
+  let totalPnl = 0;
+  let aiCorrect = 0;
+  let mistakes = {};
+
+  trades.forEach((t, i) => {
+    if (t.pnl > 0) wins++;
+    totalPnl += parseFloat(t.pnl);
+
+    if (t.correct === "Yes") aiCorrect++;
+
+    if (t.mistake) {
+      mistakes[t.mistake] = (mistakes[t.mistake] || 0) + 1;
+    }
+
+    table.innerHTML += `
+      <tr>
+        <td>${t.token}</td>
+        <td class="${t.pnl > 0 ? 'win' : 'loss'}">${t.pnl}%</td>
+        <td>${t.risk || '-'}</td>
+        <td>${t.donut || '-'}</td>
+        <td>${t.correct || '-'}</td>
+        <td>${t.mistake || '-'}</td>
+        <td>${t.note || '-'}</td>
+        <td><button class="btn" onclick="deleteTrade(${i})">X</button></td>
+      </tr>
+    `;
+  });
+
+  let total = trades.length;
+  let winrate = total ? ((wins / total) * 100).toFixed(1) : 0;
+  let avgPnl = total ? (totalPnl / total).toFixed(2) : 0;
+  let aiAccuracy = total ? ((aiCorrect / total) * 100).toFixed(1) : 0;
+
+  document.getElementById("stats").innerText =
+    `Trades: ${total} | Winrate: ${winrate}% | Avg PnL: ${avgPnl}% | AI Accuracy: ${aiAccuracy}%`;
+
+  let topMistake = Object.keys(mistakes).reduce((a, b) =>
+    mistakes[a] > mistakes[b] ? a : b, "-");
+
+  document.getElementById("insights").innerText =
+    topMistake !== "-"
+      ? `Biggest weakness: ${topMistake}`
+      : "No mistakes logged yet";
+}
+
+function exportCSV() {
+  if (trades.length === 0) {
+    alert("No trades to export");
+    return;
+  }
+
+  let csv = "Token,PnL,Risk,AI,Correct,Mistake,Note\n";
+
+  trades.forEach(t => {
+    csv += `${t.token},${t.pnl},${t.risk || ''},${t.donut || ''},${t.correct || ''},${t.mistake || ''},${t.note || ''}\n`;
+  });
+
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  let url = URL.createObjectURL(blob);
+
+  let link = document.createElement("a");
+  link.href = url;
+  link.download = "degen_trades.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+render();
+</script>
+
+</body>
+</html>
